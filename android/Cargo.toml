@@ -1,0 +1,52 @@
+[package]
+name = "retzar-android"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+description = "Android shell of ReTzar: NativeActivity entry point and touch input"
+license = "GPL-3.0-or-later"
+publish = false
+
+# A workspace of its own: the desktop build (../Cargo.toml, ../Cargo.lock)
+# stays untouched, so the original repository merges without conflicts.
+[workspace]
+
+[lib]
+name = "retzar_android"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+retzar = { path = ".." }
+serde_json = "1"
+# The front end (../src/frontend) is compiled into this crate, so it needs the
+# same direct dependencies as the desktop binary, with the Android activity.
+bevy = { version = "=0.20.0", default-features = false, features = [
+    "std", "async_executor", "multi_threaded", "bevy_asset", "bevy_log",
+    "2d_bevy_render", "bevy_winit", "keyboard", "mouse", "touch",
+    "bevy_state", "android-native-activity"
+] }
+bevy_winit = { version = "=0.20.0", default-features = false, features = [
+    "custom_cursor", "android-native-activity"
+] }
+wgpu = { version = "=30.0.1", default-features = false, features = ["vulkan"] }
+
+[profile.dev]
+opt-level = 1
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2
+debug = false
+
+# Thin LTO keeps CI builds reasonable; the desktop release uses fat LTO.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 8
+debug = false
+strip = "symbols"
+
+# Same patch as the desktop build: bevy_render without the DirectX backend.
+[patch.crates-io]
+bevy_render = { path = "../vendor/bevy_render" }

@@ -1,0 +1,53 @@
+# Builds the Android APK (arm64) with cargo-ndk and Gradle. Separate from
+# build.yml, which stays as upstream has it.
+name: Android
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "android/**"
+      - "src/**"
+      - "vendor/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/android.yml"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The toolchain is the one in rust-toolchain.toml, installed by rustup.
+      - name: Toolchain
+        run: rustup show
+      - name: Android target
+        run: rustup target add aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - name: cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Native library
+        working-directory: android
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          # Same dependency versions as the desktop build.
+          cp ../Cargo.lock Cargo.lock
+          cargo ndk -t arm64-v8a -o app/src/main/jniLibs build --release
+      - name: APK
+        working-directory: android
+        run: gradle --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retzar-android-debug
+          path: android/app/build/outputs/apk/debug/*.apk

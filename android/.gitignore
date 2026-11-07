@@ -1,0 +1,8 @@
+# Generated: CI copies ../Cargo.lock here so versions match the desktop build.
+Cargo.lock
+target/
+.gradle/
+build/
+app/build/
+app/src/main/jniLibs/
+local.properties
