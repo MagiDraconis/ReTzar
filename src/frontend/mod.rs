@@ -414,6 +414,8 @@ pub fn run(locations: &Locations, launch: Launch) -> Result<()> {
     .add_systems(Last, pace_frame);
     #[cfg(windows)]
     app.add_systems(Update, window_icon);
+    #[cfg(target_os = "android")]
+    app.add_plugins(touch::TouchAsMousePlugin);
     if let Some(player) = player {
         app.insert_resource(SoundPlayer {
             player,
@@ -1332,5 +1334,7 @@ fn capture(
     }
 }
 
+#[cfg(target_os = "android")]
+mod touch;
 #[cfg(test)]
 mod tests;

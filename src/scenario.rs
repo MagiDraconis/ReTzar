@@ -274,7 +274,13 @@ impl ScenarioCatalog {
         }
         files.sort_by_key(|p| p.file_name().map(|n| n.to_ascii_lowercase()));
         for f in files {
-            let c = Container::open(&f)?;
+            let c = match Container::open(&f) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("Campaign skipped, unreadable: {}: {e}", f.display());
+                    continue;
+                }
+            };
             let description = description(&c, "MAPS/campaign description.ini");
             let title = description.lines().next().unwrap_or("").trim().to_owned();
             let mut campaign = Campaign {
@@ -282,7 +288,12 @@ impl ScenarioCatalog {
                 description,
                 missions: Vec::new(),
             };
-            let list = Ini::parse(&c.get("MAPS/maps.ini")?);
+            // Not every .wcm lists maps (the tutorial's does not).
+            let Ok(maps) = c.get("MAPS/maps.ini") else {
+                eprintln!("Campaign skipped, no MAPS/maps.ini: {}", f.display());
+                continue;
+            };
+            let list = Ini::parse(&maps);
             let mut next = Vec::new();
             for (name, availability) in list.entries("maps") {
                 let nested = c

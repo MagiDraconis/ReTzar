@@ -21,6 +21,7 @@ unsafe extern "C" {
     fn __android_log_write(priority: c_int, tag: *const c_char, text: *const c_char) -> c_int;
 }
 
+const LOG_INFO: c_int = 4;
 const LOG_ERROR: c_int = 6;
 
 /// A line in `adb logcat -s ReTzar`.
@@ -32,8 +33,35 @@ fn log(priority: c_int, text: &str) {
     }
 }
 
+/// Android discards stdout and stderr; send them to logcat so that the game's
+/// `eprintln!` messages show up in `adb logcat -s ReTzar`.
+fn forward_stdio() {
+    use std::{
+        io::{BufRead, BufReader},
+        os::fd::FromRawFd,
+    };
+    let mut fds = [0 as c_int; 2];
+    // SAFETY: plain POSIX calls on descriptors created here; the read end is
+    // handed to exactly one owner.
+    unsafe {
+        if libc::pipe(fds.as_mut_ptr()) != 0 {
+            return;
+        }
+        libc::dup2(fds[1], 1);
+        libc::dup2(fds[1], 2);
+        libc::close(fds[1]);
+        let reader = std::fs::File::from_raw_fd(fds[0]);
+        std::thread::spawn(move || {
+            for line in BufReader::new(reader).lines().map_while(Result::ok) {
+                log(LOG_INFO, &line);
+            }
+        });
+    }
+}
+
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
+    forward_stdio();
     let _ = ANDROID_APP.set(app.clone());
     std::panic::set_hook(Box::new(|info| {
         log(

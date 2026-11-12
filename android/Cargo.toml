@@ -19,6 +19,7 @@ path = "src/lib.rs"
 [dependencies]
 retzar = { path = ".." }
 serde_json = "1"
+libc = "0.2"
 # The front end (../src/frontend) is compiled into this crate, so it needs the
 # same direct dependencies as the desktop binary, with the Android activity.
 bevy = { version = "=0.20.0", default-features = false, features = [
